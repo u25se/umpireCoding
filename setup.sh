@@ -141,24 +141,21 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 5: ffmpeg (static binary from evermeet.cx)
+# Step 5: ffmpeg
 # ---------------------------------------------------------------------------
 
 step "5/8" "ffmpeg"
-FFMPEG_BIN="$INSTALL_DIR/bin/ffmpeg"
-if [ -x "$FFMPEG_BIN" ]; then
-    skip "ffmpeg already downloaded."
-else
-    mkdir -p "$INSTALL_DIR/bin"
-    info "Downloading ffmpeg static build..."
-    curl -fsSL "https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip" -o /tmp/ffmpeg-mac.zip
-    unzip -q -o /tmp/ffmpeg-mac.zip -d "$INSTALL_DIR/bin"
-    rm -f /tmp/ffmpeg-mac.zip
-    chmod +x "$FFMPEG_BIN"
-    xattr -d com.apple.quarantine "$FFMPEG_BIN" 2>/dev/null || true
-    ok "ffmpeg downloaded."
+brew_install "ffmpeg" "ffmpeg"
+if ! command -v ffmpeg >/dev/null 2>&1; then
+    warn "ffmpeg is not available on PATH. Run 'brew install ffmpeg' and re-run setup."
+    exit 1
 fi
-export PATH="$INSTALL_DIR/bin:$PATH"
+FFMPEG_PATH="$(command -v ffmpeg)"
+if ! "$FFMPEG_PATH" -version >/dev/null 2>&1; then
+    warn "ffmpeg was found at $FFMPEG_PATH but could not run. Try 'brew reinstall ffmpeg'."
+    exit 1
+fi
+ok "ffmpeg is ready."
 
 # ---------------------------------------------------------------------------
 # Step 6: npm install
@@ -492,7 +489,7 @@ cp "$INSTALL_DIR/mac/native-host/host.js"     "$UC_DIR/native-host/host.js"
 cp "$INSTALL_DIR/mac/native-host/package.json" "$UC_DIR/native-host/package.json"
 cp -r "$INSTALL_DIR/post-processing/."        "$UC_DIR/post-processing/"
 (cd "$UC_DIR/post-processing" && npm install --silent)
-[ -f "$INSTALL_DIR/bin/ffmpeg" ] && cp "$INSTALL_DIR/bin/ffmpeg" "$UC_DIR/bin/ffmpeg"
+ln -sf "$FFMPEG_PATH" "$UC_DIR/bin/ffmpeg"
 
 # Write host.sh wrapper inside ~/.umpire-coder (not in ~/Documents)
 UC_HOST_SH="$UC_DIR/native-host/host.sh"
@@ -500,8 +497,8 @@ cat > "$UC_HOST_SH" <<'HOSTEOF'
 #!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export UC_POST_DIR="$SCRIPT_DIR/../post-processing"
-export UC_LOG="$SCRIPT_DIR/debug.log"
 export UC_REPO_DIR="__UC_REPO_DIR__"
+export UC_LOG="$UC_REPO_DIR/mac/native-host/debug.log"
 [ -d "$SCRIPT_DIR/../bin" ] && export PATH="$SCRIPT_DIR/../bin:$PATH"
 [ -f "$SCRIPT_DIR/../bin/ffmpeg" ] && export UC_FFMPEG_PATH="$SCRIPT_DIR/../bin/ffmpeg"
 for dir in /usr/local/bin /opt/homebrew/bin /opt/homebrew/opt/node/bin \

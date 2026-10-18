@@ -110,6 +110,10 @@ Click the **🔄** button in the top-right corner of the extension popup. If new
 - Open Terminal and run: `brew install ffmpeg`
 - After it finishes, fully quit Chrome (Cmd + Q) and reopen it
 
+**Finding the native host debug log**
+- The log is saved at `~/Documents/umpireCoding/mac/native-host/debug.log`
+- The native host itself is deployed under `~/.umpire-coder`; only its debug log is written to the visible project folder
+
 **The overlay doesn't appear after starting a match**
 - Make sure the livestream tab is the active tab when you click Start Match
 - Try clicking the extension icon and clicking "Show Overlay on This Tab"
