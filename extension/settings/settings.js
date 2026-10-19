@@ -70,15 +70,43 @@ function appendTag(name) {
   nameEl.className = 'tag-name';
   nameEl.textContent = name;
 
+  const moveUpBtn = document.createElement('button');
+  moveUpBtn.className = 'icon-btn';
+  moveUpBtn.type = 'button';
+  moveUpBtn.title = 'Move up';
+  moveUpBtn.setAttribute('aria-label', 'Move tag up');
+  moveUpBtn.textContent = '↑';
+
+  const moveDownBtn = document.createElement('button');
+  moveDownBtn.className = 'icon-btn';
+  moveDownBtn.type = 'button';
+  moveDownBtn.title = 'Move down';
+  moveDownBtn.setAttribute('aria-label', 'Move tag down');
+  moveDownBtn.textContent = '↓';
+
   const editBtn = document.createElement('button');
   editBtn.className = 'icon-btn';
+  editBtn.type = 'button';
   editBtn.title = 'Edit';
   editBtn.textContent = '✏';
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'icon-btn danger';
+  deleteBtn.type = 'button';
   deleteBtn.title = 'Delete';
   deleteBtn.textContent = '×';
+
+  moveUpBtn.addEventListener('click', () => {
+    const previous = item.previousElementSibling;
+    if (previous) list.insertBefore(item, previous);
+    updateTagMoveButtons(list);
+  });
+
+  moveDownBtn.addEventListener('click', () => {
+    const next = item.nextElementSibling;
+    if (next) list.insertBefore(next, item);
+    updateTagMoveButtons(list);
+  });
 
   // Inline edit toggle
   editBtn.addEventListener('click', () => {
@@ -111,8 +139,17 @@ function appendTag(name) {
 
   deleteBtn.addEventListener('click', () => item.remove());
 
-  item.append(nameEl, editBtn, deleteBtn);
+  item.append(nameEl, moveUpBtn, moveDownBtn, editBtn, deleteBtn);
   list.appendChild(item);
+  updateTagMoveButtons(list);
+}
+
+function updateTagMoveButtons(list) {
+  const items = Array.from(list.children);
+  items.forEach((item, index) => {
+    item.querySelector('[aria-label="Move tag up"]').disabled = index === 0;
+    item.querySelector('[aria-label="Move tag down"]').disabled = index === items.length - 1;
+  });
 }
 
 function tagsFromDOM() {
