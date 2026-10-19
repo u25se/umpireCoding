@@ -48,6 +48,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelector('#setup-screen h2').textContent = `Match Setup — ${sportName}`;
   }
   renderOfficialsFields(sport);
+  await restoreSetupDraft(sport);
+  bindSetupDraftPersistence(sport);
 
   // ── Setup form ───────────────────────────────────────────────────────────────
 
@@ -93,6 +95,48 @@ function renderOfficialsFields(sport) {
   `).join('');
 }
 
+async function restoreSetupDraft(sport) {
+  const { setupDraft } = await chrome.storage.local.get('setupDraft');
+  if (!setupDraft) {
+    document.getElementById('date').value = new Date().toISOString().slice(0, 10);
+    return;
+  }
+
+  for (const id of ['team1', 'team2', 'date', 'competition', 'venue']) {
+    if (Object.hasOwn(setupDraft, id)) {
+      document.getElementById(id).value = setupDraft[id];
+    }
+  }
+
+  if (setupDraft.sport === sport && setupDraft.officials) {
+    setupDraft.officials.forEach((name, i) => {
+      const input = document.getElementById(`official-${i}`);
+      if (input) input.value = name;
+    });
+  }
+}
+
+function bindSetupDraftPersistence(sport) {
+  const form = document.getElementById('setup-form');
+  const save = () => {
+    const setupDraft = {
+      sport,
+      officials: [...form.querySelectorAll('#officials-fields input')].map(input => input.value),
+      team1: form.elements.team1.value,
+      team2: form.elements.team2.value,
+      date: form.elements.date.value,
+      competition: form.elements.competition.value,
+      venue: form.elements.venue.value,
+    };
+    chrome.storage.local.set({ setupDraft }).catch(error => {
+      console.error('Could not save match setup draft:', error);
+    });
+  };
+
+  form.addEventListener('input', save);
+  form.addEventListener('change', save);
+}
+
 // ── Start flow ────────────────────────────────────────────────────────────────
 
 async function startMatch(matchData) {
@@ -117,6 +161,7 @@ async function startMatch(matchData) {
     return;
   }
 
+  await chrome.storage.local.remove('setupDraft');
   window.close();
 }
 

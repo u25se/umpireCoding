@@ -25,6 +25,7 @@
 
   let matchState      = null;
   let tagTypes        = [];
+  let tagColors       = {};
   let settings        = null;
   let selectedUmpire  = null;   // 'umpire1' | 'umpire2' | null
   let selectedTag     = null;   // tag string | null
@@ -40,12 +41,17 @@
     matchState = stateRes.matchState;
     settings   = settingsRes.settings ?? {};
     tagTypes   = settings.tagTypes ?? [];
+    tagColors  = settings.tagColors ?? {};
     mount();
     startTimer();
   });
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'SHOW_OVERLAY') host.style.display = '';
+    if (message.type === 'PERIOD_UPDATED' && matchState) {
+      matchState.currentPeriod = message.currentPeriod;
+      updatePeriodDisplay();
+    }
   });
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -63,11 +69,21 @@
     bindEvents(panel);
   }
 
+  function tagColorFor(tag) {
+    const palette = ['#4f7cff', '#2dce89', '#ffc400', '#e94560', '#b07cff'];
+    const saved = tagColors[tag];
+    if (palette.includes(saved)) return saved;
+    if (tag === 'Green Card') return '#2dce89';
+    if (tag === 'Yellow Card') return '#ffc400';
+    if (tag === 'Red Card') return '#e94560';
+    return '#4f7cff';
+  }
+
   function buildPanelHTML() {
     const u1 = esc(matchState?.matchData?.umpire1 ?? 'Umpire 1');
     const u2 = esc(matchState?.matchData?.umpire2 ?? 'Umpire 2');
     const tagButtons = tagTypes
-      .map((t) => `<button class="tag-btn" data-tag="${esc(t)}">${esc(t)}</button>`)
+      .map((t) => `<button class="tag-btn" data-tag="${esc(t)}" style="--tag-color:${tagColorFor(t)}">${esc(t)}</button>`)
       .join('');
 
     return `
@@ -88,6 +104,11 @@
           <span class="delay-label">Stream delay</span>
           <input class="delay-input" id="delay-input" type="number" min="0" max="600" value="0">
           <span class="delay-unit">s</span>
+        </div>
+
+        <div class="period-row">
+          <span class="period-status" id="period-status"></span>
+          <button class="period-btn" id="advance-period-btn"></button>
         </div>
 
         <div class="section-label">Umpire</div>
@@ -132,6 +153,8 @@
   // ── Events ──────────────────────────────────────────────────────────────────
 
   function bindEvents(panel) {
+    updatePeriodDisplay();
+
     // Minimise
     let minimised = false;
     q('#min-btn').addEventListener('click', () => {
@@ -192,6 +215,7 @@
 
     // Log event
     q('#log-btn').addEventListener('click', logEvent);
+    q('#advance-period-btn').addEventListener('click', advancePeriod);
 
     // End match — step 1: save or abandon
     q('#end-btn').addEventListener('click', () => {
@@ -246,6 +270,7 @@
       umpire: umpireName,
       tag:    selectedTag,
       notes:  q('#notes').value.trim(),
+      period_number: matchState.currentPeriod ?? 1,
     };
 
     const result = await sendMsg({ type: 'LOG_EVENT', event });
@@ -257,6 +282,30 @@
 
     const delayNote = streamDelaySecs > 0 ? ` (+${streamDelaySecs}s → ${adjustedElapsed})` : '';
     flash(`#${result.eventId} — ${umpireName} / ${event.tag}${delayNote}`, 'success');
+  }
+
+  async function advancePeriod() {
+    q('#advance-period-btn').disabled = true;
+    try {
+      const result = await sendMsg({ type: 'ADVANCE_PERIOD' });
+      if (result.error) { flash('Error: ' + result.error, 'error'); return; }
+      matchState.currentPeriod = result.currentPeriod;
+      updatePeriodDisplay();
+      flash(`Started ${result.periodName} ${result.currentPeriod}.`, 'success');
+    } finally {
+      updatePeriodDisplay();
+    }
+  }
+
+  function updatePeriodDisplay() {
+    if (!q('#period-status') || !q('#advance-period-btn')) return;
+    const periodName = matchState?.periodName ?? 'Quarter';
+    const periodCount = matchState?.periodCount ?? 4;
+    const currentPeriod = matchState?.currentPeriod ?? 1;
+    q('#period-status').textContent = `${periodName} ${currentPeriod} of ${periodCount}`;
+    const button = q('#advance-period-btn');
+    button.disabled = currentPeriod >= periodCount;
+    button.textContent = button.disabled ? `Final ${periodName}` : `End ${periodName}`;
   }
 
   async function endMatch() {
@@ -593,6 +642,26 @@
       font-weight: 600;
     }
 
+    .period-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 5px 0;
+    }
+    .period-status { color: rgba(255,255,255,0.65); font-size: 11px; font-weight: 600; }
+    .period-btn {
+      padding: 4px 8px;
+      background: rgba(79,124,255,0.1);
+      border: 1px solid rgba(79,124,255,0.35);
+      border-radius: 5px;
+      color: #9bb5ff;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .period-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
     /* ── Labels ── */
 
     .section-label {
@@ -646,31 +715,23 @@
 
     .tag-btn {
       padding: 6px 4px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.09);
+      background: color-mix(in srgb, var(--tag-color) 7%, transparent);
+      border: 1px solid color-mix(in srgb, var(--tag-color) 28%, transparent);
       border-radius: 6px;
-      color: #9a9db8;
+      color: color-mix(in srgb, var(--tag-color) 75%, #e8eaf0);
       font-size: 11px;
       cursor: pointer;
       text-align: center;
       transition: all 0.12s;
       font-family: inherit;
     }
-    .tag-btn:hover { background: rgba(255,255,255,0.08); color: #e8eaf0; }
+    .tag-btn:hover { background: color-mix(in srgb, var(--tag-color) 14%, transparent); color: #e8eaf0; }
     .tag-btn.active {
-      background: rgba(79,124,255,0.14);
-      border-color: #4f7cff;
-      color: #7aa3ff;
+      background: color-mix(in srgb, var(--tag-color) 18%, transparent);
+      border-color: var(--tag-color);
+      color: var(--tag-color);
       font-weight: 700;
     }
-
-    /* Card-specific colours */
-    .tag-btn[data-tag="Green Card"]         { border-color: rgba(45,206,137,0.25); }
-    .tag-btn[data-tag="Green Card"].active  { background: rgba(45,206,137,0.14); border-color: #2dce89; color: #2dce89; }
-    .tag-btn[data-tag="Yellow Card"]        { border-color: rgba(255,196,0,0.25); }
-    .tag-btn[data-tag="Yellow Card"].active { background: rgba(255,196,0,0.14); border-color: #ffc400; color: #ffc400; }
-    .tag-btn[data-tag="Red Card"]           { border-color: rgba(233,69,96,0.25); }
-    .tag-btn[data-tag="Red Card"].active    { background: rgba(233,69,96,0.14); border-color: #e94560; color: #e94560; }
 
     /* ── Notes ── */
 

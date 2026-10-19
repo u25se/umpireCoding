@@ -138,6 +138,11 @@ function drawMatchDetails(doc, meta, events, officials, y) {
     ['Date',         meta.date        || '—'],
     ['Competition',  meta.competition || '—'],
     ['Venue',        meta.venue       || '—'],
+    ['Team 1',       meta.team1       || '—'],
+    ['Team 2',       meta.team2       || '—'],
+    ...(meta.period_name && meta.period_count
+      ? [['Periods', `${meta.period_name === 'Half' ? 'Halves' : `${meta.period_name}s`} (${meta.period_count})`]]
+      : []),
     ['Total events', String(events.length)],
   ];
 
@@ -283,11 +288,20 @@ function drawSummary(doc, umpires, events, allTags, y) {
 
 // ── SECTION: Event table ──────────────────────────────────────────────────────
 
-function drawEventTable(doc, umpires, events, y) {
+function periodNameForEvent(event, matchPeriodName) {
+  if (event.period_name) return event.period_name;
+  if (matchPeriodName) return matchPeriodName;
+  if (event.period_name_ref) {
+    return { H: 'Half', Q: 'Quarter', P: 'Period' }[event.period_name_ref] || '';
+  }
+  return '';
+}
+
+function drawEventTable(doc, umpires, events, matchPeriodName, y) {
   doc.fillColor(C.brand).font('Helvetica-Bold').fontSize(13).text('All Events', MARGIN, y);
   y += 20;
 
-  const cols = { num: 30, time: 68, live: 68, umpire: 110, tag: 105, notes: 114 };
+  const cols = { num: 25, time: 58, live: 58, period: 55, umpire: 85, tag: 95, notes: 119 };
   const MIN_ROW_H = 16;
   const HEADER_H  = 18;
 
@@ -305,6 +319,8 @@ function drawEventTable(doc, umpires, events, y) {
     doc.text('#',         x, yPos + 4, { width: cols.num    - 4 }); x += cols.num;
     doc.text('Rec. Time', x, yPos + 4, { width: cols.time   - 4 }); x += cols.time;
     doc.text('Live Time', x, yPos + 4, { width: cols.live   - 4 }); x += cols.live;
+    doc.text('Period', x, yPos + 4, { width: cols.period - 4 });
+    x += cols.period;
     doc.text('Umpire',    x, yPos + 4, { width: cols.umpire - 4 }); x += cols.umpire;
     doc.text('Tag',       x, yPos + 4, { width: cols.tag    - 4 }); x += cols.tag;
     doc.text('Notes',     x, yPos + 4, { width: cols.notes  - 4 });
@@ -333,6 +349,14 @@ function drawEventTable(doc, umpires, events, y) {
        .text(ev.timestamp_elapsed      || '—', x, y + 4, { width: cols.time   - 4 }); x += cols.time;
     doc.fillColor(C.muted).font('Helvetica').fontSize(8)
        .text(ev.timestamp_elapsed_live || '—', x, y + 4, { width: cols.live   - 4 }); x += cols.live;
+    const periodNumber = Number(ev.period_number);
+    const eventPeriodName = periodNameForEvent(ev, matchPeriodName);
+    const period = Number.isInteger(periodNumber) && periodNumber > 0 && eventPeriodName
+      ? `${eventPeriodName} ${periodNumber}`
+      : '—';
+    doc.fillColor(C.muted).font('Helvetica').fontSize(8)
+       .text(period, x, y + 4, { width: cols.period - 4 });
+    x += cols.period;
     doc.fillColor(umpireColor).font('Helvetica-Bold').fontSize(8)
        .text(ev.umpire  || '—', x, y + 4, { width: cols.umpire - 4 }); x += cols.umpire;
     doc.fillColor(C.text).font('Helvetica-Bold').fontSize(8)
@@ -375,7 +399,7 @@ function writePDF(doc, meta, events) {
   y = drawMatchDetails(doc, meta, events, officials, y);
   y = drawTimeline(doc, officialNames, events, y);
   y = drawSummary(doc, officialNames, events, allTags, y);
-  drawEventTable(doc, officialNames, events, y);
+  drawEventTable(doc, officialNames, events, meta.period_name, y);
   drawFooter(doc, events);
 }
 

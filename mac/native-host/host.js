@@ -27,7 +27,11 @@ const LOG = process.env.UC_LOG || join(__dirname, 'debug.log');
 function dbg(msg) {
   const line = new Date().toISOString() + '  ' + msg + '\n';
   process.stderr.write(line);
-  try { appendFileSync(LOG, line); } catch {}
+  try {
+    appendFileSync(LOG, line);
+  } catch (err) {
+    process.stderr.write(`Failed to write debug log to ${LOG}: ${err.message}\n`);
+  }
 }
 
 function slugPart(str) {

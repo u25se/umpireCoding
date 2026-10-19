@@ -5,9 +5,9 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Prepend repo bin dir so ffmpeg (downloaded by setup.sh) is findable
-# even inside Chrome's restricted PATH environment.
+# Prepend repo bin dir for optional local tools; ffmpeg is installed by Homebrew.
 export PATH="$INSTALL_DIR/bin:$PATH"
+export UC_LOG="$INSTALL_DIR/mac/native-host/debug.log"
 
 for dir in \
   /usr/local/bin \
