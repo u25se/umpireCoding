@@ -221,6 +221,33 @@ select:focus { outline: none; border-color: var(--primary); }
   padding: 1px 5px;
 }
 
+.tag-colors {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.tag-color {
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--swatch-color) 55%, transparent);
+  border-radius: 50%;
+  background: var(--swatch-color);
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.tag-color:hover,
+.tag-color.selected {
+  opacity: 1;
+}
+
+.tag-color.selected {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
+
 .icon-btn {
   background: none;
   border: 1px solid transparent;

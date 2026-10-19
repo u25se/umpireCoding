@@ -59,6 +59,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/olliechauhan/umpireCoding/ma
    **Post-Processing Output**
    - Clips & Report Output Directory: choose any folder where you want clips and PDF reports saved (e.g. `/Users/[YourName]/Movies/umpire-clips`)
 
+   **Sport**
+   - Confirm the period name and number of periods match your competition
+
 4. Click **Save Settings** at the bottom of the page
 
 > **Tip:** You can pin the extension to your toolbar by clicking the puzzle piece icon at the top right of Chrome and clicking the pin next to Umpire Coder.
@@ -82,6 +85,7 @@ Here is the workflow for each match:
   - Optionally add a **note**
   - Click **Log Event**
 - If the livestream is delayed behind the live venue, enter the delay in seconds in the **Stream delay** field (e.g. `90` for a 90-second delay). You can adjust this at any time during the match.
+- Click **End Quarter/Half/Period** when that period ends. Clips include the period reference and number in their filenames (for example, `Q1`, `H1`, or `P1`), and the PDF lists the period for each tagged event.
 - Drag the overlay by its header to move it out of the way.
 
 ### After the match

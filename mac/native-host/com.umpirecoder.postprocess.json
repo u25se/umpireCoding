@@ -1,0 +1,7 @@
+{
+  "name": "com.umpirecoder.postprocess",
+  "description": "Umpire Coder post-processing host",
+  "path": "/Users/scottevans/Documents/umpireCoding/mac/native-host/host.sh",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://peophejglchcankdbmnpgipckkembphb/"]
+}

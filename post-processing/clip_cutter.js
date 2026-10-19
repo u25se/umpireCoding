@@ -10,7 +10,7 @@
  *   duration = pre + post seconds (default: 30 pre + 15 post = 45s total, max 45s)
  *
  * Clips are saved to:
- *   <clip-output-dir>/<Date>_<Competition>_clips/<UmpireName>_<TagType>_<HH-MM-SS>.mp4
+ *   <clip-output-dir>/<match-folder>/<NNN>_<Umpire>_<Tag>_[Qn_]HH-MM-SS.mp4
  *
  * Requires ffmpeg on PATH.
  */
@@ -111,6 +111,11 @@ function secsToHHMMSS(secs) {
   return [h, m, s].map(v => String(v).padStart(2, '0')).join('-');
 }
 
+function periodCode(name, ref) {
+  if (['Q', 'H', 'P'].includes(ref)) return ref;
+  return { Quarter: 'Q', Half: 'H', Period: 'P' }[name] || '';
+}
+
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -164,7 +169,16 @@ function main() {
     const umpire  = sanitise(ev.umpire);
     const tag     = sanitise(ev.tag);
     const ts      = secsToHHMMSS(evSecs);
-    const filename = `${idx}_${umpire}_${tag}_${ts}.mp4`;
+    const periodNumber = Number(ev.period_number);
+    const eventPeriodName = ev.period_name || raw.match?.period_name;
+    const periodRef = periodCode(eventPeriodName, ev.period_name_ref || raw.match?.period_name_ref);
+    const periodPrefix = Number.isInteger(periodNumber) && periodNumber > 0 && periodRef
+      ? `${periodRef}${periodNumber}_`
+      : '';
+    if (!periodPrefix) {
+      console.warn(`[${idx}] Period metadata missing or invalid; filename will omit the period.`);
+    }
+    const filename = `${idx}_${umpire}_${tag}_${periodPrefix}${ts}.mp4`;
     const outPath  = join(clipsDir, filename);
 
     // Skip if already exists (re-run safety)

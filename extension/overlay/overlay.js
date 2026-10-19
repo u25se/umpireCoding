@@ -4,6 +4,7 @@
 
 let matchState      = null;
 let tagTypes        = [];
+let tagColors       = {};
 let settings        = null;
 let selectedUmpire  = null;
 let selectedTag     = null;
@@ -18,8 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     matchState = stateRes.matchState;
     settings   = settingsRes.settings ?? {};
     tagTypes   = settings.tagTypes ?? [];
+    tagColors  = settings.tagColors ?? {};
     mount();
     startTimer();
+  });
+
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type !== 'PERIOD_UPDATED' || !matchState) return;
+    matchState.currentPeriod = message.currentPeriod;
+    updatePeriodDisplay();
   });
 });
 
@@ -43,8 +51,11 @@ function buildPanelHTML() {
     .join('');
 
   const tagButtons = tagTypes
-    .map((t) => `<button class="tag-btn" data-tag="${esc(t)}">${esc(t)}</button>`)
+    .map((t) => `<button class="tag-btn" data-tag="${esc(t)}" style="--tag-color:${tagColorFor(t)}">${esc(t)}</button>`)
     .join('');
+  const periodName = matchState?.periodName ?? 'Quarter';
+  const periodCount = matchState?.periodCount ?? 4;
+  const currentPeriod = matchState?.currentPeriod ?? 1;
 
   const officialLabel = matchState?.matchData?.sport === 'football' || matchState?.matchData?.sport === 'rugby_union'
     ? 'Official'
@@ -69,6 +80,13 @@ function buildPanelHTML() {
         <span class="delay-label">Stream delay</span>
         <input class="delay-input" id="delay-input" type="number" min="0" max="600" value="0">
         <span class="delay-unit">s</span>
+      </div>
+
+      <div class="period-row">
+        <span class="period-status" id="period-status">${esc(periodName)} ${currentPeriod} of ${periodCount}</span>
+        <button class="period-btn" id="advance-period-btn" ${currentPeriod >= periodCount ? 'disabled' : ''}>
+          ${currentPeriod >= periodCount ? `Final ${esc(periodName)}` : `End ${esc(periodName)}`}
+        </button>
       </div>
 
       <div class="section-label">${esc(officialLabel)}</div>
@@ -154,6 +172,7 @@ function bindEvents() {
 
   // Log event
   q('#log-btn').addEventListener('click', logEvent);
+  q('#advance-period-btn').addEventListener('click', advancePeriod);
 
   // End match — step 1
   q('#end-btn').addEventListener('click', () => {
@@ -207,6 +226,7 @@ async function logEvent() {
     umpire: umpireName,
     tag:    selectedTag,
     notes:  q('#notes').value.trim(),
+    period_number: matchState.currentPeriod ?? 1,
   };
 
   const result = await sendMsg({ type: 'LOG_EVENT', event });
@@ -218,6 +238,30 @@ async function logEvent() {
 
   const delayNote = streamDelaySecs > 0 ? ` (+${streamDelaySecs}s → ${adjustedElapsed})` : '';
   flash(`#${result.eventId} — ${umpireName} / ${event.tag}${delayNote}`, 'success');
+}
+
+async function advancePeriod() {
+  q('#advance-period-btn').disabled = true;
+  try {
+    const result = await sendMsg({ type: 'ADVANCE_PERIOD' });
+    if (result.error) { flash('Error: ' + result.error, 'error'); return; }
+    matchState.currentPeriod = result.currentPeriod;
+    updatePeriodDisplay();
+    flash(`Started ${result.periodName} ${result.currentPeriod}.`, 'success');
+  } finally {
+    updatePeriodDisplay();
+  }
+}
+
+function updatePeriodDisplay() {
+  if (!q('#period-status') || !q('#advance-period-btn')) return;
+  const periodName = matchState?.periodName ?? 'Quarter';
+  const periodCount = matchState?.periodCount ?? 4;
+  const currentPeriod = matchState?.currentPeriod ?? 1;
+  q('#period-status').textContent = `${periodName} ${currentPeriod} of ${periodCount}`;
+  const button = q('#advance-period-btn');
+  button.disabled = currentPeriod >= periodCount;
+  button.textContent = button.disabled ? `Final ${periodName}` : `End ${periodName}`;
 }
 
 async function endMatch() {
@@ -360,6 +404,16 @@ function esc(s) {
   return String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function tagColorFor(tag) {
+  const palette = ['#4f7cff', '#2dce89', '#ffc400', '#e94560', '#b07cff'];
+  const saved = tagColors[tag];
+  if (palette.includes(saved)) return saved;
+  if (tag === 'Green Card') return '#2dce89';
+  if (tag === 'Yellow Card') return '#ffc400';
+  if (tag === 'Red Card') return '#e94560';
+  return '#4f7cff';
 }
 
 function elapsedToSecs(elapsed) {

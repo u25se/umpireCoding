@@ -13,21 +13,29 @@ chrome.windows.onRemoved.addListener((windowId) => {
 const SPORT_DATA = {
   field_hockey: {
     name: 'Field Hockey',
+    periodName: 'Quarter',
+    periodCount: 4,
     officials: ['Umpire 1', 'Umpire 2'],
     tags: ['Positioning', 'Overheads', 'Breakdown', 'Whistle Timing', 'Hitting Ball Away', 'Advantage', 'Player Management', 'Green Card', 'Yellow Card', 'Red Card', 'Presentation', 'Teamwork'],
   },
   football: {
     name: 'Football',
+    periodName: 'Half',
+    periodCount: 2,
     officials: ['Referee', 'AR 1', 'AR 2'],
     tags: ['Offside Decision', 'Foul — Awarded', 'Foul — Missed', 'Advantage Played', 'Yellow Card', 'Red Card', 'Penalty Decision', 'Corner / Goal Kick', 'AR Flag', 'Positioning', 'Communication'],
   },
   rugby_union: {
     name: 'Rugby',
+    periodName: 'Half',
+    periodCount: 2,
     officials: ['Referee', 'AR 1', 'AR 2'],
     tags: ['Offside at Ruck', 'Offside at Lineout', 'High Tackle', 'Ruck Infringement', 'Scrum Decision', 'Penalty Awarded', 'Yellow Card', 'Red Card', 'Try Awarded', 'Try Denied', 'Advantage Played', 'Positioning', 'Communication'],
   },
   basketball: {
     name: 'Basketball',
+    periodName: 'Quarter',
+    periodCount: 4,
     officials: ['Referee 1', 'Referee 2', 'Referee 3'],
     tags: ['Foul Called', 'Foul Missed', 'Travel', 'Double Dribble', 'Out of Bounds', 'Goaltending', 'Technical Foul', 'Free Throw Administration', 'Shot Clock Violation', 'Positioning', 'Communication'],
   },
@@ -45,6 +53,8 @@ const DEFAULT_SETTINGS = {
   clipOutputDirectory: '',
   cropOverlayMargin: 200,
   sport: 'field_hockey',
+  periodName: 'Quarter',
+  periodCount: 4,
   tagTypes: SPORT_DATA.field_hockey.tags,
 };
 
@@ -211,13 +221,73 @@ async function handle(message) {
     case 'LOG_EVENT': {
       const { matchState } = await chrome.storage.local.get('matchState');
       if (!matchState?.active) return { error: 'No active match.' };
+      const { settings } = await chrome.storage.local.get('settings');
+      const sport = SPORT_DATA[settings?.sport] ?? SPORT_DATA.field_hockey;
+      const validPeriodNames = ['Half', 'Quarter', 'Period'];
+      if (!validPeriodNames.includes(matchState.periodName)) {
+        matchState.periodName = validPeriodNames.includes(settings?.periodName)
+          ? settings.periodName
+          : sport.periodName;
+      }
+      matchState.periodNameRef = periodNameRef(matchState.periodName);
+      if (!Number.isInteger(matchState.currentPeriod) || matchState.currentPeriod < 1) {
+        matchState.currentPeriod = 1;
+      }
 
-      const newEvent = { id: matchState.nextEventId, ...message.event };
+      const newEvent = {
+        id: matchState.nextEventId,
+        ...message.event,
+        period_name: matchState.periodName,
+        period_name_ref: matchState.periodNameRef,
+        period_number: matchState.currentPeriod,
+      };
       matchState.events.push(newEvent);
       matchState.nextEventId += 1;
       await chrome.storage.local.set({ matchState });
 
       return { success: true, eventId: newEvent.id };
+    }
+
+    case 'ADVANCE_PERIOD': {
+      const { matchState } = await chrome.storage.local.get('matchState');
+      if (!matchState?.active) return { error: 'No active match.' };
+      const { settings } = await chrome.storage.local.get('settings');
+      const sport = SPORT_DATA[settings?.sport] ?? SPORT_DATA.field_hockey;
+      const validPeriodNames = ['Half', 'Quarter', 'Period'];
+      if (!validPeriodNames.includes(matchState.periodName)) {
+        matchState.periodName = validPeriodNames.includes(settings?.periodName)
+          ? settings.periodName
+          : sport.periodName;
+      }
+      matchState.periodNameRef = periodNameRef(matchState.periodName);
+      const configuredCount = Number(matchState.periodCount ?? settings?.periodCount);
+      matchState.periodCount = Number.isInteger(configuredCount) && configuredCount >= 1 && configuredCount <= 12
+        ? configuredCount
+        : sport.periodCount;
+      if (!Number.isInteger(matchState.currentPeriod) || matchState.currentPeriod < 1) {
+        matchState.currentPeriod = 1;
+      } else if (matchState.currentPeriod > matchState.periodCount) {
+        matchState.currentPeriod = matchState.periodCount;
+      }
+      await chrome.storage.local.set({ matchState });
+      if (matchState.currentPeriod >= matchState.periodCount) {
+        return { error: `Already in the final ${matchState.periodName.toLowerCase()}.` };
+      }
+
+      matchState.currentPeriod += 1;
+      await chrome.storage.local.set({ matchState });
+      chrome.runtime.sendMessage({
+        type: 'PERIOD_UPDATED',
+        currentPeriod: matchState.currentPeriod,
+        periodName: matchState.periodName,
+        periodCount: matchState.periodCount,
+      }).catch(err => console.warn('[BG] Could not broadcast period change:', err.message));
+      return {
+        success: true,
+        currentPeriod: matchState.currentPeriod,
+        periodName: matchState.periodName,
+        periodCount: matchState.periodCount,
+      };
     }
 
     case 'END_MATCH': {
@@ -335,10 +405,25 @@ async function handle(message) {
 
 async function startMatchAndInjectOverlay(matchData) {
   const startTime = Date.now();
+  const { settings } = await chrome.storage.local.get('settings');
+  const sport = SPORT_DATA[settings?.sport] ?? SPORT_DATA.field_hockey;
+  const configuredCount = Number(settings?.periodCount);
   const matchState = {
     active: true,
     startTime,
     matchData,
+    periodName: ['Half', 'Quarter', 'Period'].includes(settings?.periodName)
+      ? settings.periodName
+      : sport.periodName,
+    periodNameRef: periodNameRef(
+      ['Half', 'Quarter', 'Period'].includes(settings?.periodName)
+        ? settings.periodName
+        : sport.periodName
+    ),
+    periodCount: Number.isInteger(configuredCount) && configuredCount >= 1 && configuredCount <= 12
+      ? configuredCount
+      : sport.periodCount,
+    currentPeriod: 1,
     events: [],
     nextEventId: 1,
   };
@@ -363,6 +448,10 @@ function slugPart(str) {
   return (str || '').trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
 }
 
+function periodNameRef(name) {
+  return { Half: 'H', Quarter: 'Q', Period: 'P' }[name] ?? '';
+}
+
 function matchSlug(d) {
   const date      = (d.date || 'unknown-date');
   const officials = d.officials || [];
@@ -380,6 +469,9 @@ function buildEventLog(matchState) {
   const log = {
     match: {
       sport:       matchData.sport,
+      period_name: matchState.periodName,
+      period_name_ref: matchState.periodNameRef ?? periodNameRef(matchState.periodName),
+      period_count: matchState.periodCount,
       officials:   matchData.officials,
       date:        matchData.date,
       competition: matchData.competition,
