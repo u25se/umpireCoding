@@ -84,7 +84,11 @@
         </div>
         <div class="field">
           <label for="obs-password">WebSocket Password</label>
-          <input type="password" id="obs-password" placeholder="Leave blank if none set">
+          <div class="path-row">
+            <input type="password" id="obs-password" placeholder="Leave blank if none set">
+            <button type="button" id="toggle-obs-password" class="secondary-btn"
+                    aria-controls="obs-password" aria-pressed="false">Show</button>
+          </div>
         </div>
         <div class="field">
           <label for="obs-exe-path">OBS Location</label>

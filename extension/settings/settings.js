@@ -124,6 +124,15 @@ function tagsFromDOM() {
 // ── Events ────────────────────────────────────────────────────────────────────
 
 function bindEvents() {
+  document.getElementById('toggle-obs-password').addEventListener('click', (e) => {
+    const button = e.currentTarget;
+    const password = document.getElementById('obs-password');
+    const isVisible = password.type === 'text';
+    password.type = isVisible ? 'password' : 'text';
+    button.textContent = isVisible ? 'Show' : 'Hide';
+    button.setAttribute('aria-pressed', String(!isVisible));
+  });
+
   // Browse buttons for path fields
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('.browse-btn');
