@@ -41,6 +41,18 @@ Setup takes around 5–10 minutes. The script handles the technical parts automa
 
 ## How to Use
 
+### Settings - This sets up the extension for sport and tag configuration, and its connection to OBS
+
+Open **Settings** (⚙ in the extension popup) to configure the extension:
+
+- **Sport and periods** — select Field Hockey, Football, Rugby, or Basketball, then set the period name (Half, Quarter, or Period) and number of periods (1–12). Defaults are four quarters for Field Hockey and Basketball, and two halves for Football and Rugby. Changing the sport resets the period defaults and tag list for that sport.
+- **Tag Types** — add, edit, remove, and reorder tag buttons. Choose from five colors for visual grouping. New tags default to blue; built-in card tags retain their existing colors.
+- **OBS Connection** — enter the WebSocket host, port, and password. Use **Show** to reveal or hide the password and **Test Connection** to check the connection.
+- **Output Location** — choose where recordings, clips, and reports are saved.
+- **Recording Quality** — configure recording format, resolution, and frame rate. Clip duration can also be adjusted with pre-tag and post-tag lengths, up to 45 seconds total.
+
+Click **Save Settings** to save your changes. Use **Apply OBS Settings** to apply the OBS recording settings.
+
 ### Starting a match
 1. Open the livestream in Chrome
 2. Click the **Umpire Coder** icon in your toolbar
@@ -52,18 +64,6 @@ Setup takes around 5–10 minutes. The script handles the technical parts automa
 - If the stream is delayed behind the live venue, enter the delay in seconds in the **Stream delay** field
 - Use **End Quarter/Half/Period** when a period finishes. The overlay shows the active period and count; events logged afterward are assigned to the next period.
 - Drag the overlay by its title bar to reposition it
-
-### Settings
-
-Open **Settings** (⚙ in the extension popup) to configure the extension:
-
-- **Sport and periods** — select Field Hockey, Football, Rugby, or Basketball, then set the period name (Half, Quarter, or Period) and number of periods (1–12). Defaults are four quarters for Field Hockey and Basketball, and two halves for Football and Rugby. Changing the sport resets the period defaults and tag list for that sport.
-- **Tag Types** — add, edit, remove, and reorder tag buttons. Choose from five colors for visual grouping. New tags default to blue; built-in card tags retain their existing colors.
-- **OBS Connection** — enter the WebSocket host, port, and password. Use **Show** to reveal or hide the password and **Test Connection** to check the connection.
-- **Output Location** — choose where recordings, clips, and reports are saved.
-- **Recording Quality** — configure recording format, resolution, and frame rate. Clip duration can also be adjusted with pre-tag and post-tag lengths, up to 45 seconds total.
-
-Click **Save Settings** to save your changes. Use **Apply OBS Settings** to apply the OBS recording settings.
 
 ### Ending a match
 1. Click **End Match** on the overlay, then **Confirm**
