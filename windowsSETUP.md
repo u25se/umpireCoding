@@ -96,9 +96,68 @@ Here is the workflow for each match:
 
 ---
 
-## Keeping Umpire Coder Up to Date
+## Pulling the Latest Version from GitHub
 
-Click the **🔄** button in the top-right corner of the extension popup. If new changes are available they are downloaded and the extension reloads automatically. You do not need to open a terminal or repeat any setup steps.
+Only update when no match is in progress.
+
+### Standard users
+
+Click **🔄 Check for Updates** in the extension popup. It pulls the latest version from the configured upstream and reloads the extension if files changed. You do not need to edit source code or run Git commands.
+
+The Windows setup keeps the extension, native host, and post-processing files in the same Git checkout at `Documents\umpireCoding`. That checkout is part of the current updater design, but ordinary users do not need to change or work with its source files.
+
+### Contributors and users deploying from a fork
+
+If you use a fork, merge the changes into `main` on your fork first. Then configure the local `main` branch to pull from your fork (rather than the original project's `origin`):
+
+1. Open **PowerShell** (administrator privileges are not needed for updates) and go to the Git checkout:
+
+   ```powershell
+   Set-Location "$HOME\Documents\umpireCoding"
+   ```
+
+2. Check the checkout and its remotes:
+
+   ```powershell
+   git status -sb
+   git remote -v
+   ```
+
+   If `git status` shows modified tracked files, stop and save or commit those changes before updating. Do not discard them. An untracked `debug.log` can be left alone.
+
+3. Fetch your fork. In this example, its remote is named `my-fork`:
+
+   ```powershell
+   git fetch my-fork
+   ```
+
+   If your fork is instead named `origin`, use `origin` in place of `my-fork` below. If the fork is not listed by `git remote -v`, add it once, replacing `YOUR_GITHUB_USERNAME` with your GitHub username:
+
+   ```powershell
+   git remote add my-fork https://github.com/YOUR_GITHUB_USERNAME/umpireCoding.git
+   git fetch my-fork
+   ```
+
+4. Set the local `main` branch to track your fork's `main`:
+
+   ```powershell
+   git switch main
+   git branch --set-upstream-to=my-fork/main main
+   ```
+
+   If you do not have a local `main` branch yet, use `git switch --track my-fork/main` instead.
+
+5. Confirm `git status -sb` shows `main` tracking `my-fork/main`. Then click **🔄 Check for Updates** in the extension popup. It should report **Updated!** or **Already up to date.**
+
+Windows uses the same checkout for the extension, native host, and post-processing scripts, so a successful pull updates all three. If the pull reports a conflict or local changes, stop and resolve those before retrying. Do not delete or reset files to force the update.
+
+After an update, refresh the post-processing dependencies from PowerShell:
+
+```powershell
+Push-Location "$HOME\Documents\umpireCoding\post-processing"
+npm install
+Pop-Location
+```
 
 ---
 
