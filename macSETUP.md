@@ -97,9 +97,75 @@ Here is the workflow for each match:
 
 ---
 
-## Keeping Umpire Coder Up to Date
+## Pulling the Latest Version from GitHub
 
-Click the **🔄** button in the top-right corner of the extension popup. If new changes are available they are downloaded and the extension reloads automatically. You do not need to open a terminal or repeat any setup steps.
+Only update when no match is in progress.
+
+### Standard users
+
+Click **🔄 Check for Updates** in the extension popup. It pulls the latest version from the configured upstream and reloads the extension if files changed. You do not need to edit source code or run Git commands.
+
+The current macOS setup keeps a Git checkout in `~/Documents/umpireCoding` for updates, and runs the native host and post-processing runtime from `~/.umpire-coder`. The update button updates the checkout and synchronizes the deployed runtime. The source checkout is part of the current updater design, but ordinary users do not need to change or work with its source files.
+
+### Contributors and users deploying from a fork
+
+If you use a fork, merge the changes into `main` on your fork first. Then configure the local `main` branch to pull from your fork (rather than the original project's `origin`):
+
+1. Open **Terminal** and go to the checkout used by the native host. For the standard setup:
+
+   ```bash
+   cd "$HOME/Documents/umpireCoding"
+   ```
+
+   If you moved the entire Git checkout into `~/.umpire-coder` and registered the host from there, use:
+
+   ```bash
+   cd "$HOME/.umpire-coder"
+   ```
+
+2. Check the checkout and its remotes:
+
+   ```bash
+   git status -sb
+   git remote -v
+   ```
+
+   If `git status` shows modified tracked files, stop and save or commit those changes before updating. Do not discard them. An untracked `debug.log` can be left alone.
+
+3. Fetch your fork. In this example, its remote is named `my-fork`:
+
+   ```bash
+   git fetch my-fork
+   ```
+
+   If your fork is instead named `origin`, use `origin` in place of `my-fork` below. If the fork is not listed by `git remote -v`, add it once, replacing `YOUR_GITHUB_USERNAME` with your GitHub username:
+
+   ```bash
+   git remote add my-fork https://github.com/YOUR_GITHUB_USERNAME/umpireCoding.git
+   git fetch my-fork
+   ```
+
+4. Set the local `main` branch to track your fork's `main`:
+
+   ```bash
+   git switch main
+   git branch --set-upstream-to=my-fork/main main
+   ```
+
+   If you do not have a local `main` branch yet, use `git switch --track my-fork/main` instead.
+
+5. Confirm `git status -sb` shows `main` tracking `my-fork/main`. Then click **🔄 Check for Updates** in the extension popup. It should report **Updated!** or **Already up to date.**
+
+If you moved the full checkout into `~/.umpire-coder`, make sure Chrome's unpacked extension is loaded from that same checkout so extension changes are included.
+
+The standard setup installs post-processing dependencies during synchronization. If you maintain a full Git checkout directly in `~/.umpire-coder`, install dependencies there after an update:
+
+```bash
+cd "$HOME/.umpire-coder/post-processing"
+npm install
+```
+
+If the pull reports a conflict or local changes, stop and resolve those before retrying. Do not delete or reset files to force the update.
 
 ---
 
@@ -117,6 +183,7 @@ Click the **🔄** button in the top-right corner of the extension popup. If new
 **Finding the native host debug log**
 - The log is saved at `~/Documents/umpireCoding/mac/native-host/debug.log`
 - The native host itself is deployed under `~/.umpire-coder`; only its debug log is written to the visible project folder
+- If the popup reports that it updated but the new post-processing behavior is missing, confirm that the registered native-host manifest points to the intended `host.sh` and check this log for a deployment sync error
 
 **The overlay doesn't appear after starting a match**
 - Make sure the livestream tab is the active tab when you click Start Match
